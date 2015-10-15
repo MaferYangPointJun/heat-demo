@@ -52,7 +52,7 @@ resources:
       networks: [{network: {get_param: network} }]
       user_data:
         str_replace:
-          template: { get_file: iisweb.ps1 }
+          template: { get_file: https://github.com/MaferYangPointJun/heat-demo/blob/master/iisweb.ps1 }
           params:
             projectname: { get_param: app_name }
             appurl: { get_param: app_url }
