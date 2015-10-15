@@ -1,0 +1,113 @@
+heat_template_version: 2013-05-23
+description: A load-balancer server
+parameters:
+  network:
+    type: string
+    default: daa30b6b-5e4d-4228-9c70-1f274a15aad4
+  prinet:
+    type: string
+    default: 02bb8ac0-6fc0-4fe6-86bc-16097786470b0
+  subnet_id:
+    type: string
+    default: 651e0d9c-af36-4da1-985b-a1374d9dc487
+  key_name:
+    type: string
+    default: demo
+  image:
+    default: win2008srv-enterprise-v1.4.1
+    type: string
+  flavor:
+    type: string
+    default: m1.large
+  app_name:
+    default: virtualcoupongateway
+    type: string
+  app_url:
+    default: http://download.tcwyun.com/cloudwebapp/virtualcoupongateway.rar
+    type: string
+  app_port:
+    default: 1001
+    type: string
+  app_root:
+    default: C:\wwwroot
+    type: string
+  app_configname:
+    default: _appSettings.config
+    type: string
+  app_configcontent:
+    default: ProjectMark,tcyun.hongbao.test
+    type: string
+  app_portal:
+    default: service.ashx
+    type: string
+  instance_count:
+    default: 2
+    type: string
+
+resources:
+  server_group:
+    type: OS::Heat::AutoScalingGroup
+    properties:
+      min_size: 2
+      desired_capacity: { get_param: instance_count }
+      max_size: 5
+      resource:
+        type: vm_with_cinder.yaml
+        properties:
+          key_name: { get_param: key_name }
+          image: { get_param: image }
+          flavor: { get_param: flavor }
+          network: { get_param: network }
+          pool_id: { get_resource: pool }
+          app_name: { get_param: app_name }
+          app_url: { get_param: app_url }
+          app_port: { get_param: app_port }
+          app_configname: { get_param: app_configname }
+          app_configcontent: { get_param: app_configcontent }
+          app_root: { get_param: app_root }
+  scale_up_policy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: {get_resource: server_group}
+      cooldown: 60
+      scaling_adjustment: 1
+  scale_dn_policy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: {get_resource: server_group}
+      cooldown: 60
+      scaling_adjustment: '-1'
+  pool:
+    type: OS::Neutron::Pool
+    properties:
+      protocol: HTTP
+      monitors: [{get_resource: monitor}]
+      subnet_id: {get_param: subnet_id}
+      lb_method: ROUND_ROBIN
+      vip:
+        protocol_port: { get_param: app_port }
+  lb:
+    type: OS::Neutron::LoadBalancer
+    properties:
+      protocol_port: { get_param: app_port }
+      pool_id: {get_resource: pool }
+  monitor:
+    type: OS::Neutron::HealthMonitor
+    properties:
+      type: TCP
+      delay: 5
+      max_retries: 5
+      timeout: 5
+outputs:
+  WebsiteURL:
+    description:
+    value:
+      str_replace:
+        template: http://vip:port/projectname/portal
+        params:
+          vip: { get_attr: [ pool, vip, address ] }
+          port: { get_param: app_port }
+          projectname: { get_param: app_name }
+          portal: { get_param: app_portal }

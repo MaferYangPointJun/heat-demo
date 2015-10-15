@@ -1,0 +1,73 @@
+heat_template_version: 2013-05-23
+
+description: >
+  A HOT template that holds a VM instance with an attached
+  Cinder volume.  The VM does nothing, it is only created.
+parameters:
+  key_name:
+    type: string
+    default: admin
+  flavor:
+    type: string
+    default: m1.large
+  image:
+    type: string
+    default: win2008srv-enterprise-v1.4.1
+  network:
+    type: string
+    default: public-net
+  vol_size:
+    type: number
+    default: 40
+  pool_id:
+    type: string
+  app_name:
+    default: virtualcoupongateway
+    type: string
+  app_url:
+    default: http://download.tcwyun.com/cloudwebapp/virtualcoupongateway.rar
+    type: string
+  app_port:
+    default: 1001
+    type: string
+  app_root:
+    default: C:\wwwroot
+    type: string
+  app_configname:
+    default: _
+    type: string
+  app_configcontent:
+    default: _
+    type: string
+  app_portal:
+    default: service.ashx
+    type: string
+resources:
+  instance:
+    type: OS::Nova::Server
+    properties:
+      key_name: { get_param: key_name }
+      block_device_mapping: [{ device_name: "vda", volume_id : { get_resource : volume }, delete_on_termination : "false" }]
+      flavor: { get_param: flavor }
+      networks: [{network: {get_param: network} }]
+      user_data:
+        str_replace:
+          template: { get_file: iisweb.ps1 }
+          params:
+            projectname: { get_param: app_name }
+            appurl: { get_param: app_url }
+            appport: { get_param: app_port }
+            app_configname: { get_param: app_configname }
+            app_configcontent: { get_param: app_configcontent }
+            app_root: { get_param: app_root }
+  volume:
+    type: OS::Cinder::Volume
+    properties:
+      image: { get_param: image }
+      size: { get_param: vol_size }
+  member:
+    type: OS::Neutron::PoolMember
+    properties:
+      pool_id: {get_param: pool_id}
+      address: {get_attr: [ instance, first_address]}
+      protocol_port: { get_param: app_port }
