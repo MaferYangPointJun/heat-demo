@@ -1,0 +1,2 @@
+resource_registry:  
+  "OS::Nova::CouponGroup": file:///root/heat-template/vm_withiisweb.yaml
